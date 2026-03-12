@@ -112,7 +112,7 @@ def nb_multiplier_from_counts(n, mu_mult, theta, mu_count=100.0, rng=None, floor
     return np.maximum(w, floor)
 
 
-def sample_clustered_nb_multipliers_optionA(
+def sample_clustered_nb_multipliers(
     cluster_id,
     mus, thetas,
     mu_count=100.0,
@@ -631,11 +631,11 @@ if __name__ == "__main__":
     cluster_id_sweep = sample_clusters(n_het_vmax_h2, n_clusters=K, cluster_fracs=[0.25]*4, rng=np.random.default_rng(1234))
 
     # multipliers
-    W = sample_clustered_nb_multipliers_optionA(
+    W = sample_clustered_nb_multipliers(
         cluster_id=cluster_id, mus=mus, thetas=thetas,
         mu_count=MU_COUNT, seed=123
     )
-    W_sweep = sample_clustered_nb_multipliers_optionA(
+    W_sweep = sample_clustered_nb_multipliers(
         cluster_id=cluster_id_sweep, mus=mus, thetas=thetas,
         mu_count=MU_COUNT, seed=999
     )
