@@ -95,7 +95,7 @@ def nb_multiplier_from_counts(n, mu_mult, theta, mu_count=100.0, rng=None, floor
     return np.maximum(w, floor)
 
 
-def sample_clustered_triplet_multipliers_optionA(
+def sample_clustered_triplet_multipliers(
     n_cells,
     cluster_id,
     uptake_mus, uptake_thetas,
@@ -168,10 +168,6 @@ def alloc_total_to_cells_and_bulk(total_CL, multipliers, n_het, N_tot, name="CL"
     CL_bulk_total = max(total_CL - CL_explicit_total, 0.0)
     return CL_i, CL_bulk_total
 
-
-# ============================================================
-# RHS ODE
-# ============================================================
 def rhs_azd1775_multicell_brain(
     t, y, p,
     VbrIF_i, V_IF_bulk,
@@ -544,9 +540,6 @@ def simulate_azd1775_multicell_brain_with_bulk(
     return sol, df, CbrIF_mat, CbrIC_mat
 
 
-# ============================================================
-# Plot helpers
-# ============================================================
 def plot_clusters_2x2_bands(t, mat, cl, title_prefix, q_lo=0.05, q_hi=0.95, sharey=True):
     t = np.asarray(t)
     mat = np.asarray(mat)
@@ -588,9 +581,6 @@ def plot_clusters_2x2_bands(t, mat, cl, title_prefix, q_lo=0.05, q_hi=0.95, shar
     plt.show()
 
 
-# ============================================================
-# Excel export (same structure you used, minor cleanup)
-# ============================================================
 def export_azd_excel(
     out_xlsx,
     sol, df,
@@ -738,7 +728,7 @@ if __name__ == "__main__":
     cl = sample_clusters(n_het, n_clusters=n_clusters, cluster_fracs=cluster_fracs, rng=np.random.default_rng(123))
 
     # Sample clustered multipliers (Option A)
-    uptake_W, pgp_W, abcg2_W = sample_clustered_triplet_multipliers_optionA(
+    uptake_W, pgp_W, abcg2_W = sample_clustered_triplet_multipliers(
         n_cells=n_het,
         cluster_id=cl,
         uptake_mus=uptake_mus, uptake_thetas=uptake_thetas,
