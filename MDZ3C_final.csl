@@ -1,0 +1,137 @@
+! PBPK model for MDZ IV in humans, single dose
+! Based on  Cao and Jusko JPP 2012 paper on mPBPK and Adapt Fortran code. 
+
+model MDZ64
+
+initial
+	
+!Organ plasma flowrate parameters (L/min)
+
+  	constant Qli = 1.45 ! liver plasma flow based Cao & Jusko.
+  	constant Qco = 5.6 !  plasma flowrate or cardiac output, based Cao & Jusko., 70 kg BW.
+    constant fd1 = 0.692 ! from Jusko
+    constant fd2 = 0.0842 ! from Jusko
+  
+!Organ volume parameters (L) 
+
+	constant BW = 70. !bodyweight in kg, after corrected 70 kg for RBCs in blood compartments (venous, arterial and PV).
+	
+	constant Vli = 1.69 !total liver 
+	constant VliV = 0.29 ! liver vascular volume
+	constant VliIF = 0.27 ! liver interstitial fluid volume
+	constant VliIC = 1.13 ! liver intracellular volume
+	constant V1 = 24.3 !compartment 1 volume via Jusko
+	constant V2 = 38.4 !compartment 2 volume via calculation assuming Vli=2.33 and Vvpl=0.86L 
+    constant Vvpl = 5.2 ! venous plasma
+	
+!==================Drug-Specific Parameters====================
+!Partition coefficients [unitless]  
+  	
+  	constant Rli = 0.655 !liver partition coefficient via Jusko 
+  	constant R1 = 0.655 !compartment 1 partition coefficient via Jusko
+  	constant R2 = 0.655 !compartment 2 partition coefficient via Jusko 
+  	
+!Memebrane Transport (L/min)
+    constant h1 = 27416. ! transport plasma <> IF
+    constant h2 = 14606. ! transport IF<> IC
+  	
+!Elimination [L/min]
+
+    constant Vmax = 12.16 ! mg/min Fitted value, see model log.
+    constant Km = 1.08 ! mg/L fitted value see model log.
+    constant fup = 0.03 ! fraction unbound in plasma from PK-Sim/DrugBank
+   
+ 
+!Dosing parameters
+  	constant IVDose = 9.6 !IV bolus dose; UNITS: mg; 
+  	constant BolusDuration = 1. ! bolus duration of 1 min.
+
+!Timing Commands
+	constant TSTOP = 720. !length of experiment; UNITS: min
+  	constant POINTS = 8640 !number of points   
+  	CINT = TSTOP/POINTS !interval of data collection (every 5 min)
+  
+	
+!First-order absorption rate constant from lumen
+!	constant kabs = 2.1 !UNITS: 1/hr; from Sanai et sl 2018 CCR paper
+!	constant F= 0.7 ! unitless, from trial and error, see plot9 cmd file.
+
+    
+end
+
+derivative
+! IV smooth function
+     lambda = 1/BolusDuration !lambda= 1/bolus duration
+     If (t <= BolusDuration)
+     IVsmooth = 30*lambda*(lambda*t**2)*(1-lambda*t)**2
+     
+     else
+     IVsmooth = 0
+     end
+
+!Liver Kinetics
+!Vascular liver equations
+    rliIn = Qli*Cvpl 
+    rliOut = Qli *CliV
+    nliVIF = h1*(CliV-CliIF/Rli)
+    
+    dAliV = rliIn - rliOut - nliVIF
+    AliV = integ(dAliV, 0.)
+    CliV =AliV/VliV
+    
+!Interstitial liver equations
+    nliICin = h2*CliIF
+    nliICout = h2*CliIC/Rli
+    nliIFIC = nliICin - nliICout
+    
+    dAliIF = nliVIF - nliIFIC
+    AliIF = integ(dAliIF, 0.)
+    CliIF =AliIF/VliIF
+    
+!Intracellular liver equations
+     Ucon = Rli/fup
+     eliCLint = Vmax*CliIC/((Km*Ucon) + CliIC)
+    
+    dAliIC = nliIFIC - eliCLint
+    AliIC = integ(dAliIC,0.)
+    CliIC = AliIC/VliIC
+    
+!Total liver 
+    CliT = (AliV + AliIF + AliIC)/(Vli)
+    AUClit = integ(Clit, 0.)
+    
+!Compartment 1 Kinetics
+    rv1In = fd1*(Qco-Qli)*Cvpl
+    rv1Out = fd1*(Qco-Qli)*Cv1/R1
+    
+    dAv1 = rv1In - rv1Out
+    Av1 = integ(dAv1,0.)
+    Cv1 = Av1/V1
+    
+!Compartment 2 Kinetics
+    rv2In = fd2*(Qco-Qli)*Cvpl
+    rv2Out = fd2*(Qco-Qli)*Cv2/R2
+    
+    dAv2 = rv2In - rv2Out
+    Av2 = integ(dAv2,0.)
+    Cv2 = Av2/V2
+    
+!Venous Plasma Kinetics
+    rvplIn = rliOut + rv1Out + rv2Out 
+    rvplOut = rliIn + rv1In + rv2In 
+    
+    dAvpl = rvplIn + (IVdose*IVsmooth) - rvplOut
+    Avpl = integ(dAvpl, 0)
+    Cvpl = Avpl/Vvpl
+    
+!    Cvpl = A1*exp(-alpha1*t) + A2*exp(-alpha2*t)
+    
+    AUCvpl = integ(Cvpl,0.)
+    
+
+  termt(t >= tstop, 'time limit')
+
+end
+
+end 
+

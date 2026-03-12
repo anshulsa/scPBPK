@@ -1,0 +1,245 @@
+! PBPK model for AZD1775 in humans, single dose
+! Based on Li et al CCR 2017 paper. Initial PBPK model done in PK-Sim.
+
+model AZD1775_3C_model07
+
+initial
+	
+!Organ plasma flowrate parameters (L/hr)
+	CO = 368 !cardiac output; UNITS: L/hr; from PK-Sim caucasian blood flow rates and multiplied by 1-H = 1-0.45 =0.55
+  	constant Qbo = 9.2 !bone plasmaflow
+  	constant Qbr = 25.1 ! brain plasmaflow
+  	constant Qfa = 12.5 ! fat plasmaflow
+  	constant Qhe = 8.6 ! heart plasmaflow
+  	constant Qki = 42.2 ! kidney plasmaflow
+  	constant Qli = 15.5 ! liver plasmaflow, hepatic artery
+  	constant Qlu = 200.4  ! equal to cardiac output
+  	constant Qmu = 43.6 ! muscle plasmaflow
+  	constant Qpv = 36. ! portal vein
+  	constant Qgi = 36. ! GI compartment, sum of LI, pancreas, spleen, and SI.
+  	constant Qrb = 9.7 ! sum of gonads and skin
+  	constant Qco = 200.4 !cardiac output and equal to lung
+  
+
+!Organ volume parameters (L) 
+!Vascular compartment corrected for RBC volume by multipling blood volumes by 1-H = 1-0.45 = 0.55
+	constant BW = 73 !bodyweight in kg
+	constant Vbo = 10.6 !total bone 
+	constant VbrV = 0.03 !brain vascular
+	constant VbrIF = 0.01 !brain interstitial
+	constant VbrIC = 1.41 !brain intracellular 
+	constant Vfa = 18.6  !total fat 
+	constant Vhe = 0.5 !total heart 
+	constant Vki = 0.4 !total kidney 
+	constant Vli = 1.9 !total liver 
+	constant Vlu = 0.9  !total lung 
+	constant Vmu = 30.4 !total muscle 
+	constant Vpv = 0.46 !portal vein volume
+	constant Vgi = 1.6 !total GI 
+	constant Vrb = 3.5 !total rest of body 
+	constant Vapl = 0.22 ! arterial Plasma
+	constant Vvpl = 0.50 ! venous plasma
+	
+	
+!==================Drug-Specific Parameters====================
+!Partition coefficients [unitless]  
+  	
+  	constant Rbo = 129. !bone partition coefficient
+  	constant Rbr1 = 0.49 !brain partition coefficient IF-Plasma from PK-Sim
+  	constant Rbr2 = 9.6 !brain partition coefficient IC-Plasma from PK-Sim, Fitted
+  	constant Rfa = 376. !fat partition coefficient 
+  	constant Rhe = 49. !heart partition coefficient 
+  	constant Rki = 26. !kidney partition coefficient 
+  	constant Rli = 4.3 !liver partition coefficient 
+  	constant Rlu = 7. !lung partition coefficient 
+  	constant Rmu = 8. !muscle partition coefficient 
+  	constant Rgi = 28. !GI partition coefficient 
+  	constant Rrb = 33. !rest-of-body partition coefficient 
+  	
+!Mass Transfer Coefficients [L/hr]
+  
+!    constant hbr1 = 6.98 !brain vascular <> IF, equal to PSB
+!    constant hbr2 = 0.25 ! brain  IF <> IC, equal to PSB2
+    
+!Brain Tumor 4Brain parameters
+    constant CLbreffPgp = 2.7 !L/hr calulated from Li et al, pH=7.4
+    constant CLbreffABCG2 = 2.96 !L/hr calulated from Li et al, pH=7.4
+    constant CLbrEff = 5.66 !L/hr, sum of Pgp and Abcg2 efflux clearances
+    constant PSB = 12.6 !L/hr, bi-directional membrane transport, Table 1
+    constant PSB2 = 54.2 !L/hr, bi-directional IF <> IC, from PK-Sim, Fitted
+    constant CLbrUptake = 105.4 !L/hr, Fitted
+!    constant fuIF = 0.4  ! calculated by product: Rbr2*fu,br or 5.7*0.07
+    constant fuIC = 0.07 ! from Table Li et al
+
+   
+!Dosing parameters
+  	constant OralDose = 400 !oral dose; UNITS: mg; oral gavage
+	
+
+!Timing Commands
+	constant TSTOP = 24 !length of experiment; UNITS: hr
+  	constant POINTS = 192 !number of points   
+  	CINT = TSTOP/POINTS !interval of data collection (every 15 min); UNITS: hr
+  
+	
+!First-order absorption rate constant from lumen
+	constant kabs = 2.1 !UNITS: 1/hr; from Sanai et sl 2018 CCR paper
+	constant F= 0.7 ! unitless, from trial and error, see plot9 cmd file.
+
+!Organ Intrinsic Clearances [L/hr]
+    constant CLliInt = 250. !Fitted/adjusted.
+    constant CLkiInt = 5.5 !Fitted/adjusted.
+    constant fup =0.2 ! fraction unbound in plasma from Li et al
+
+    
+end
+
+derivative
+
+!Bone kinetics
+    rboIn = Qbo*Capl
+    rboOut = Qbo*Cbo/Rbo
+   
+    dAbo = rboIn - rboOut 
+    Abo = integ(dAbo,0.)
+    Cbo = Abo/Vbo
+    
+!Brain kinetics 
+    rbrIn = Qbr*Capl
+    rbrOut = Qbr*CbrV
+    tbrVIF = PSB*(CbrV-CbrIF/Rbr1)
+    tbrIFIC = PSB2*(CbrIF-CbrIC/Rbr2)
+    tbrIn = CLbrUptake*CbrV*fup
+    tbrOutPgp = (CLbreffPgp)*CbrIF/Rbr1
+    tbrOutABCG2 = (CLbreffABCG2)*CbrIF/Rbr1
+    
+    dAbrV = rbrIn - rbrOut - tbrVIF - tbrIn + tbrOutPgp + tbrOutABCG2 
+    AbrV = integ(dAbrV,0.)
+    CbrV = AbrV/VbrV
+    
+    dAbrIF = tbrVIF + tbrIn - tbrOutPgp - tbrOutABCG2 - tbrIFIC
+    AbrIF = integ(dAbrIF, 0.)
+    CbrIF = AbrIF/VbrIF
+    
+    dAbrIC = tbrIFIC 
+    AbrIC = integ(dAbrIC, 0.)
+    CbrIC = AbrIC/VbrIC
+    
+    Cbr = (AbrV + AbrIF + AbrIC)/(VbrV + VbrIF + VbrIC)	
+    
+    AUCbr = integ(Cbr,0.)
+
+!Fat Kinetics
+    rfaIn = Qfa*Capl
+    rfaOut = Qfa*Cfa/Rfa
+    
+    dAfa = rfaIn - rfaOut
+    Afa = integ(dAfa,0.)
+    Cfa = Afa/Vfa
+    
+
+!Heart Kinetics
+    rheIn = Qhe*Capl
+    rheOut = Qhe*Che/Rhe
+    
+    dAhe = rheIn - rheOut 
+    Ahe = integ(dAhe,0.)
+    Che = Ahe/Vhe
+    
+!Kidney Kinetics
+    rkiIn = Qki*Capl
+    rkiOut = Qki*Cki/Rki
+    
+    ekiCLint = CLkiInt*Cki*(fup/Rki)
+    
+    dAki = rkiIn - rkiOut - ekiCLint
+    Aki = integ(dAki,0.)
+    Cki = Aki/Vki
+    
+    
+!Liver Kinetics
+    rliIn = Qli*Capl + Qpv*Cpv
+    rliOut = (Qli + Qpv)*Cli/Rli
+    
+    eliCLint = CLliInt*Cli*(fup/Rli)
+    
+    dAli = rliIn - rliOut - eliCLint
+    Ali = integ(dAli,0.)
+    Cli = Ali/Vli
+    
+    AUCli = integ(Cli, 0.)
+    
+    
+!Lung Kinetics
+    rluIn = rvplOut
+    rluOut = Qco*Clu/Rlu
+    
+    dAlu = rluIn - rluOut 
+    Alu = integ(dAlu,0.)
+    Clu = Alu/Vlu
+
+!Muscls Kinetics
+    rmuIn = Qmu*Capl
+    rmuOut = Qmu*Cmu/Rmu
+    
+    dAmu = rmuIn - rmuOut 
+    Amu = integ(dAmu,0.)
+    Cmu = Amu/Vmu
+    
+    
+!Rest of body Kinetics
+    rrbIn = Qrb*Capl
+    rrbOut = Qrb*Crb/Rrb
+    
+    dArb = rrbIn - rrbOut
+    Arb = integ(dArb,0.)
+    Crb = Arb/Vrb
+    
+!GI Compartment Kinetics
+    rgiIn = Qgi*Capl
+    rgiOut = Qgi*Cgi/Rgi
+    
+    
+    rAbsgi = kabs*F*OralDose*(exp(-kabs*t))
+    
+    dAgi = rgiIn - rgiOut + rAbsgi
+    Agi = integ(dAgi,0.)
+    Cgi = Agi/Vgi
+    
+    
+    
+!Poral Vein Kinetics 
+    rpvIn = rgiOut
+    rpvOut = Qpv*Cpv
+    
+    dApv = rpvIn - rpvOut
+    Apv = integ(dApv, 0.)
+    Cpv = Apv/Vpv
+    
+!Venous Plasma Kinetics
+    rvplIn = rboOut + rbrOut + rfaOut + rheOut + rkiOut + rliOut + rmuOut + rrbOut
+    rvplOut = Qco*Cvpl
+    
+    
+    dAvpl = rvplIN - rvplOut 
+    Avpl = integ(dAvpl, 0.)
+    Cvpl = Avpl/Vvpl
+    
+    AUCvpl = integ(Cvpl,0.)
+    
+!Arterial plasma Kinetics
+    raplIn = rluOut
+    raplOut = Qco*Capl
+    
+    dAapl = raplIn - raplOut
+    Aapl = integ(dAapl, 0.)
+    Capl = Aapl/Vapl
+
+
+
+  termt(t >= tstop, 'time limit')
+
+end
+
+end 
+
